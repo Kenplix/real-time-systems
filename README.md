@@ -1,4 +1,4 @@
-# real-time-systems
+# Real time systems
  Laboratory work with visualization
 
 # How to run?
