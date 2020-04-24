@@ -1,35 +1,48 @@
-from typing import Union
-
-import matplotlib.pyplot as plt
+import numpy as np
 
 from signal.create import *
-from autocorrelation import algs
-
-MAX_TAU: int = TICKS
+from utilities.logged import logged
 
 
-def show_signals():
-    sig_x = [x_gen(tick) for tick in range(TICKS)]
-    sig_y = [y_gen(tick) for tick in range(TICKS)]
+@logged(separator='\n')
+def autocorr(x: np.ndarray, y: np.ndarray, mode: str = 'regular'):
+    """The autocorrelation produces a symmetric signal,
+     we only care about the "right half"""
+    corr = np.correlate(x, x, mode='full')[len(x) - 1:]
+    if mode == 'regular':
+        return corr
+    elif mode == 'normalized':
+        if all(x == y):
+            return corr / np.var(x) / len(x)
+        else:
+            raise ValueError('Different signals')
+    else:
+        raise ValueError(f'Unknown mode: {mode}')
 
-    plt.plot(range(TICKS), sig_x, label='first')
-    plt.plot(range(TICKS), sig_y, label='second')
-    plt.title('Random signals')
-    plt.legend()
-    plt.show()
 
+def show():
+    x_gen = generator(HARMONICS, FREQUENCY)
+    y_gen = generator(HARMONICS, FREQUENCY)
 
-def show_autocorrelation():
-    Rxx = [algs.autocorrelation(x_gen, x_gen, TICKS, tau) for tau in range(MAX_TAU)]
-    Rxy = [algs.autocorrelation(x_gen, y_gen, TICKS, tau) for tau in range(MAX_TAU)]
+    sig_x = np.array([x_gen(lag) for lag in LAGS])
+    sig_y = np.array([y_gen(lag) for lag in LAGS])
 
-    plt.plot(range(MAX_TAU), Rxx, label='Rxx(t, tau)')
-    plt.plot(range(MAX_TAU), Rxy, label='Rxy(t, tau)')
-    plt.title('Autocorrelation')
-    plt.legend()
+    Rxx = autocorr(sig_x, sig_x)
+    Rxy = autocorr(sig_x, sig_y)
+
+    import matplotlib.pyplot as plt
+    fig, axs = plt.subplots(2, 1)
+    axs[0].plot(LAGS, Rxx)
+    axs[0].set_xlabel('Lags')
+    axs[0].set_ylabel('Rxx(t, lag)')
+
+    axs[1].plot(LAGS, Rxy)
+    axs[1].set_xlabel('Lags')
+    axs[1].set_ylabel('Rxy(t, lag)')
+
+    fig.tight_layout()
     plt.show()
 
 
 if __name__ == '__main__':
-    show_signals()
-    show_autocorrelation()
+    show()
