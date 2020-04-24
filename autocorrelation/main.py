@@ -8,7 +8,7 @@ from utilities.logged import logged
 def autocorr(x: np.ndarray, y: np.ndarray, mode: str = 'regular'):
     """The autocorrelation produces a symmetric signal,
      we only care about the "right half"""
-    corr = np.correlate(x, x, mode='full')[len(x) - 1:]
+    corr = np.correlate(x, y, mode='full')[len(x) - 1:]
     if mode == 'regular':
         return corr
     elif mode == 'normalized':
@@ -31,7 +31,8 @@ def show():
     Rxy = autocorr(sig_x, sig_y)
 
     import matplotlib.pyplot as plt
-    fig, axs = plt.subplots(2, 1)
+
+    fig, axs = plt.subplots(3, 1)
     axs[0].plot(LAGS, Rxx)
     axs[0].set_xlabel('Lags')
     axs[0].set_ylabel('Rxx(t, lag)')
@@ -39,6 +40,10 @@ def show():
     axs[1].plot(LAGS, Rxy)
     axs[1].set_xlabel('Lags')
     axs[1].set_ylabel('Rxy(t, lag)')
+
+    axs[2].plot(LAGS, Rxx, LAGS, Rxy)
+    axs[2].set_xlabel('Lags')
+    axs[2].set_ylabel('Rxx and Rxy')
 
     fig.tight_layout()
     plt.show()
