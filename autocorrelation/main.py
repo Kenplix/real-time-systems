@@ -5,23 +5,23 @@ import matplotlib.pyplot as plt
 from signal.create import *
 from autocorrelation import algs
 
-MAX_TAU: int = PARTS
+MAX_TAU: int = TICKS
 
 
 def show_signals():
-    sig_x = [x_gen(i) for i in range(PARTS)]
-    sig_y = [y_gen(i) for i in range(PARTS)]
+    sig_x = [x_gen(tick) for tick in range(TICKS)]
+    sig_y = [y_gen(tick) for tick in range(TICKS)]
 
-    plt.plot(range(PARTS), sig_x, label='first')
-    plt.plot(range(PARTS), sig_y, label='second')
+    plt.plot(range(TICKS), sig_x, label='first')
+    plt.plot(range(TICKS), sig_y, label='second')
     plt.title('Random signals')
     plt.legend()
     plt.show()
 
 
 def show_autocorrelation():
-    Rxx = [algs.autocorrelation(x_gen, x_gen, PARTS, tau) for tau in range(MAX_TAU)]
-    Rxy = [algs.autocorrelation(x_gen, y_gen, PARTS, tau) for tau in range(MAX_TAU)]
+    Rxx = [algs.autocorrelation(x_gen, x_gen, TICKS, tau) for tau in range(MAX_TAU)]
+    Rxy = [algs.autocorrelation(x_gen, y_gen, TICKS, tau) for tau in range(MAX_TAU)]
 
     plt.plot(range(MAX_TAU), Rxx, label='Rxx(t, tau)')
     plt.plot(range(MAX_TAU), Rxy, label='Rxy(t, tau)')
