@@ -2,33 +2,12 @@ import time
 from contextlib import contextmanager
 
 import numpy as np
-import random
-import math
-import matplotlib.pyplot as plt
+from signal.create import *
+from utilities.logged import logged
 
 
-AMPLITUDE_MAX = 1
-FULL_CIRCLE = 2 * math.pi
-
-# variant 10
-HARMONICS = 14
-TICKS = 2048
-FREQUENCY = 1700
-
-
-def random_signal(harmonics, ticks, freq):
-    generated_signal = np.zeros(ticks)
-    for i in range(harmonics):
-        fi = FULL_CIRCLE * random.random()
-        amplitude = AMPLITUDE_MAX * random.random()
-        w = freq - i * freq / harmonics
-
-        x = amplitude * np.sin(np.arange(0, ticks, 1) * w + fi)
-        generated_signal += x
-    return generated_signal
-
-
-def w_table(n):
+@logged(separator='\n')
+def w_table(n: int) -> np.ndarray:
     res = np.empty((n, n), dtype=complex)
     for p in range(n):
         for k in range(n):
@@ -38,41 +17,39 @@ def w_table(n):
 
 
 @contextmanager
-def timeit(msg):
-    s = time.time()
+def timeit(msg: str) -> None:
+    start_time = time.time()
     try:
         yield
     finally:
-        print(f'{msg} Took {time.time()- s}')
+        print(f'{msg}: {time.time()- start_time}')
+
+
+def show(sig: np.ndarray, ft: np.ndarray, ft_type: str) -> None:
+    import matplotlib.pyplot as plt
+    fig, axs = plt.subplots(3, 1)
+    axs[0].set_title('Random signal')
+    axs[0].plot(LAGS, sig)
+
+    axs[1].set_title(f'{ft_type} real')
+    axs[1].stem(LAGS, np.real(ft), use_line_collection=True)
+
+    axs[2].set_title(f'{ft_type} imag')
+    axs[2].stem(LAGS, np.imag(ft), use_line_collection=True)
+    fig.tight_layout()
+    plt.show()
 
 
 if __name__ == '__main__':
-    random.seed(10)
-    x_line = [i for i in range(TICKS)]
-    sig = random_signal(HARMONICS, TICKS, FREQUENCY)
-    table = w_table(TICKS)
+    gen = generator(HARMONICS, FREQUENCY)
+    sig = np.array([gen(lag) for lag in LAGS])
 
-    with timeit('With precomputed table'):
-        dft = np.matmul(table, sig)
+    msg = 'DFT'
+    with timeit(msg):
+        dft = np.matmul(w_table(len(LAGS)), sig)
+    show(sig, dft, msg)
 
-    with timeit('With manual coef counting'):
-        dft2 = np.matmul(w_table(TICKS), sig)
-
-    with timeit('Default numpy fft'):
-        np.fft.fft(sig, n=TICKS)
-
-
-# draw plots
-#     plt.subplot(311)
-#     p1 = plt.plot(x_line, sig, label='Random signal')
-#     plt.legend(handles=p1)
-#
-#     plt.subplot(312)
-#     plt.title('DFT real')
-#     p2 = plt.stem(x_line, np.real(dft), use_line_collection=True)
-#
-#     plt.subplot(313)
-#     plt.title('DFT Imag')
-#     p3 = plt.stem(x_line, np.imag(dft), use_line_collection=True)
-#
-#     plt.show()
+    msg = 'FFT'
+    with timeit(msg):
+        fft = np.fft.fft(sig, n=len(LAGS))
+    show(sig, fft, msg)
