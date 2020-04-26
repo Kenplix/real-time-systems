@@ -29,12 +29,12 @@ def generator(harmonics: int, frequency: int) -> Ticker:
     return tiker
 
 
-def show():
+def show() -> None:
     x_gen = generator(HARMONICS, FREQUENCY)
     y_gen = generator(HARMONICS, FREQUENCY)
 
-    sig_x = [x_gen(lag) for lag in LAGS]
-    sig_y = [y_gen(lag) for lag in LAGS]
+    sig_x = np.array([x_gen(lag) for lag in LAGS])
+    sig_y = np.array([y_gen(lag) for lag in LAGS])
 
     import matplotlib.pyplot as plt
     plt.plot(LAGS, sig_x, label='x')
