@@ -5,7 +5,7 @@ from utilities.logged import logged
 
 
 @logged(separator='\n')
-def autocorr(x: np.ndarray, y: np.ndarray, mode: str = 'regular'):
+def autocorr(x: np.ndarray, y: np.ndarray, mode: str = 'regular') -> np.ndarray:
     """The autocorrelation produces a symmetric signal,
      we only care about the "right half"""
     corr = np.correlate(x, y, mode='full')[len(x) - 1:]
@@ -20,7 +20,7 @@ def autocorr(x: np.ndarray, y: np.ndarray, mode: str = 'regular'):
         raise ValueError(f'Unknown mode: {mode}')
 
 
-def show():
+def show() -> None:
     x_gen = generator(HARMONICS, FREQUENCY)
     y_gen = generator(HARMONICS, FREQUENCY)
 
@@ -31,7 +31,6 @@ def show():
     Rxy = autocorr(sig_x, sig_y)
 
     import matplotlib.pyplot as plt
-
     fig, axs = plt.subplots(3, 1)
     axs[0].plot(LAGS, Rxx)
     axs[0].set_xlabel('Lags')
