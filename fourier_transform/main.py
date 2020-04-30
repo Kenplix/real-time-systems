@@ -1,6 +1,4 @@
-import time
-from contextlib import contextmanager
-
+from timeit import timeit
 from signal.main import *
 
 
@@ -12,15 +10,6 @@ def w_table(n: int) -> np.ndarray:
             angle = 2 * np.pi * p * k / n
             res[p][k] = np.cos(angle) - 1j * np.sin(angle)
     return res
-
-
-@contextmanager
-def timeit(msg: str) -> None:
-    start_time = time.time()
-    try:
-        yield
-    finally:
-        print(f'{msg}: {time.time()- start_time}')
 
 
 def show(sig: np.ndarray, ft: np.ndarray, ft_type: str) -> None:
