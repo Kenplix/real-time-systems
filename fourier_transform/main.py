@@ -1,4 +1,4 @@
-from timeit import timeit
+from timers import timeit
 from signal.main import *
 
 
