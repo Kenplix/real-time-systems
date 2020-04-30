@@ -1,7 +1,4 @@
-import numpy as np
-
-from signal.create import *
-from utilities.logged import logged
+from signal.main import *
 
 
 @logged(separator='\n')

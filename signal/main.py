@@ -3,7 +3,7 @@ from typing import Union, List, Callable
 
 import numpy as np
 
-from utilities.logged import logged
+from logged import logged
 
 
 Rational = Union[int, float]

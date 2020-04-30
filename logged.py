@@ -11,7 +11,7 @@ class Modes(Enum):
     WITHOUT_PARAMETERS: int = auto()
 
 
-def args_builder(mode: Modes, /, args: Tuple[Any, ...], kwargs: Dict[str, Any]) -> str:
+def _args_builder(mode: Modes, /, args: Tuple[Any, ...], kwargs: Dict[str, Any]) -> str:
     if mode is Modes.WITH_PARAMETERS:
         arg_lst = []
         if args:
@@ -30,7 +30,7 @@ def logged(time_format='%b %d %Y - %H:%M:%S', separator='', mode: Modes = Modes.
     def decorator(func):
         @wraps(func)
         def decorated_func(*args, **kwargs):
-            arg_str = args_builder(mode, args, kwargs)
+            arg_str = _args_builder(mode, args, kwargs)
             func_disp = colored(func.__qualname__, "magenta", attrs=["bold"])
             print(f'{separator}- Running {func_disp}'
                   f'{arg_str} on {time.strftime(time_format)}')
