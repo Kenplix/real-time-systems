@@ -1,5 +1,5 @@
 import random
-from typing import Union, List, Callable
+from typing import *
 
 import numpy as np
 
@@ -13,7 +13,7 @@ FULL_CIRCLE = 2 * np.pi
 
 HARMONICS: int = 10
 FREQUENCY: int = 1100
-LAGS: List[int] = range(256)
+LAGS: range = range(256)
 
 Ticker = Callable[[Rational], Rational]
 
