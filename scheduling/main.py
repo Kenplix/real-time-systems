@@ -1,8 +1,6 @@
 import time
-import sys
 from queue import PriorityQueue
 from dataclasses import dataclass, field
-from typing import Any
 
 from timers import timer
 
@@ -12,18 +10,18 @@ from fourier_transform.main import w_table
 
 from fermat_factor.main import full_factor
 
-
-REQUESTS: int = 10
+REQUESTS: int = 10000
 
 MIN_PRIORITY: int = 1
 MAX_PRIORITY: int = 10
 
-MIN_INTENSITY: int = 1
-MAX_INTENSITY: int = 10
-INTENSITY_STEP: int = 1
+INTENSITY: int = 5000
 
 REPS: int = 100
 CONFIG = dict()
+
+processed_requests = []
+
 
 
 @timer
@@ -47,28 +45,17 @@ def create_config():
 
     global CONFIG
     for k, v in local_config.items():
-        CONFIG[k] = {'func': (func := v['func']), 'mean': collector(func, *v['params']) / REPS}
-
-
-def generate_intensity():
-    try:
-        return random.choice(range(int(MIN_INTENSITY), int(MAX_INTENSITY)))
-    except IndexError:
-        print('MIN_INTENSITY could not be greater, than MAX_INTENSITY')
-        sys.exit(0)
-
+        CONFIG[k] = {'func': (func := v['func']),
+                     'params': v['params'],
+                     'mean': collector(func, *v['params']) / REPS}
 
 
 class Request:
-    def __init__(self, task_id: int):
-        self.login = time.time()
+    def __init__(self, task_id: Union[int, str], login: float):
+        self.task_id = str(task_id)
+        self.login = login
         self.mean = CONFIG[str(task_id)]['mean']
-
-        deadline_coef = generate_intensity() + random.random()
-        self.deadline = self.login + deadline_coef * self.mean
-
-    def __repr__(self):
-        return f'Available time: {self.deadline - self.login}'
+        self.deadline = self.login + (1 + random.random()) * self.mean
 
 
 @dataclass(order=True)
@@ -76,34 +63,33 @@ class PrioritizedRequest:
     priority: int
     item: Any = field(compare=False)
 
-    def __repr__(self):
-        return f'Priority: {self.priority} | {self.item}'
 
-
-def request_generator():
-    for _ in range(REPS):
-        try:
-            t = 1/generate_intensity()
-        except ZeroDivisionError:
-            print('MIN_INTENSITY cannot be less than 1')
-            sys.exit(0)
-        time.sleep(t)
-
+def fill_queue(intensity: Union[int, float]):
+    current_time = 0
+    for _ in range(REQUESTS):
         priority = random.randint(MIN_PRIORITY, MAX_PRIORITY)
-        request = Request(random.randint(0, 2))
-        yield PrioritizedRequest(priority, request)
+        request = Request(random.randint(0, 2), current_time)
+        current_time += 1 / intensity
+        queue.put(PrioritizedRequest(priority, request))
 
-def main():
 
-    queue = PriorityQueue()
-
-    for request in request_generator():
-        queue.put(request)
-
+def execute_queue():
+    current_time = 0
     while not queue.empty():
-        print(queue.get())
+        start_time = time.time()
+        request = queue.get()
+        func = CONFIG[request.item.task_id]['func']
+        params = CONFIG[request.item.task_id]['params']
+        func(*params)
+        current_time += time.time() - start_time
+        if current_time < request.item.deadline:
+            processed_requests.append(request)
 
 if __name__ == '__main__':
-    create_config()
-    main()
+    queue = PriorityQueue()
 
+    create_config()
+    fill_queue(INTENSITY)
+    execute_queue()
+
+    print(len(processed_requests))
