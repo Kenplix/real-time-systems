@@ -2,7 +2,9 @@ import logging
 import threading
 import time
 from queue import PriorityQueue
+from dataclasses import dataclass, field
 from collections import namedtuple
+from concurrent.futures import ThreadPoolExecutor
 
 from timers import timer
 from autocorrelation.main import autocorr
@@ -39,11 +41,14 @@ def build_funcs(*cfgs):
     return {index: cfg for index, cfg in enumerate(cfgs)}
 
 
+@dataclass
 class Request:
-    def __init__(self, task_id: int, login: float, average: float):
-        self.task_id = task_id
-        self.login = login
-        self.average = average
+    task_id: int
+    login: float
+    average: float
+    deadline: float = None
+
+    def __post_init__(self):
         self.deadline = self.login + (1 + random.random()) * self.average
 
     # Implementation of EDF algorithm
@@ -51,7 +56,7 @@ class Request:
         return self.deadline < other.deadline
 
     def __repr__(self):
-        return f'<Task ID : {self.task_id}, Life time : {self.deadline - self.login}>'
+        return f'{self.task_id=}, {self.deadline=}'
 
 
 class ProducerThread(threading.Thread):
@@ -72,9 +77,38 @@ class ProducerThread(threading.Thread):
                 delay = 1 / INTENSITY
                 current_time += delay
                 request_number += 1
-                logging.debug(f'Putting ({priority=} {item=}): '
+
+                prefix = colored('Putting', 'cyan', attrs=['bold'])
+                logging.debug(f'{prefix} ({priority=}, {item}): '
                               f'{self.queue.qsize()} items in queue, {request_number=}')
                 time.sleep(delay)
+
+
+def consumer(queue, funcs, lock):
+    current_time = 0
+    global request_number, processed_requests
+    while request_number < REQUESTS:
+        if not queue.empty():
+            priority, item = queue.get()
+
+            is_executed = False
+            start_time = time.time()
+            if current_time < item.deadline:
+                cfg = funcs[item.task_id]
+                cfg.func(*cfg.params)
+                is_executed = True
+            current_time += time.time() - start_time
+
+            prefix = colored('Failed', 'red', attrs=['bold'])
+            with lock:
+                if current_time < item.deadline and is_executed:
+                    processed_requests += 1
+                    prefix = colored('Passed', 'green', attrs=['bold'])
+                request_number += 1
+
+            logging.debug(f'{prefix} ({priority=}, {item}): '
+                          f'{self.queue.qsize()} items in queue, {request_number=}')
+            queue.task_done()
 
 
 class ConsumerThread(threading.Thread):
@@ -92,28 +126,27 @@ class ConsumerThread(threading.Thread):
             if not self.queue.empty():
                 priority, item = self.queue.get()
 
+                is_executed = False
                 start_time = time.time()
-
-                is_execute = False
                 if current_time < item.deadline:
                     cfg = self.funcs[item.task_id]
                     cfg.func(*cfg.params)
-                    is_execute = True
+                    is_executed = True
                 current_time += time.time() - start_time
 
                 prefix = colored('Failed', 'red', attrs=['bold'])
                 with self.lock:
-                    if current_time < item.deadline and is_execute:
+                    if current_time < item.deadline and is_executed:
                         processed_requests += 1
                         prefix = colored('Passed', 'green', attrs=['bold'])
                     request_number += 1
 
-                logging.debug(f'{prefix} ({priority=} {item=}): '
+                logging.debug(f'{prefix} ({priority=}, {item}): '
                               f'{self.queue.qsize()} items in queue, {request_number=}')
                 self.queue.task_done()
 
 
-def main(*, delay: float = 0, buf_size=None):
+def main(*, delay: float = 0, buf_size=None, max_workers=1):
     x_gen = generator(HARMONICS, FREQUENCY)
     y_gen = generator(HARMONICS, FREQUENCY)
 
@@ -130,23 +163,23 @@ def main(*, delay: float = 0, buf_size=None):
     queue = PriorityQueue(buf_size) if buf_size else PriorityQueue()
     average = calculate_average(*configs, reps=REPS)
     producer = ProducerThread(name='producer', queue=queue, average=average)
+    producer.start()
+    time.sleep(delay)
 
     funcs = build_funcs(*configs)
     lock = threading.Lock()
-    consumer = ConsumerThread(name='consumer', queue=queue, funcs=funcs, lock=lock)
-
-    producer.start()
-    time.sleep(delay)
-    consumer.start()
+    for _ in range(max_workers):
+        consumer = ConsumerThread(name='consumer', queue=queue, funcs=funcs, lock=lock)
+        consumer.start()
+        consumer.join()
 
     producer.join()
-    consumer.join()
 
-    print(f'{processed_requests=}')
+    print(f'{max_workers=} {processed_requests=}')
 
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG,
                         format='(%(threadName)s) %(message)s')
 
-    main(delay=0.01, buf_size=50)
+    main(delay=0.01, buf_size=50, max_workers=5)
