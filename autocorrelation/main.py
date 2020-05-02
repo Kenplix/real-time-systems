@@ -1,7 +1,6 @@
 from signal.main import *
 
 
-@logged(separator='\n')
 def autocorr(x: np.ndarray, y: np.ndarray, mode: str = 'regular') -> np.ndarray:
     """The autocorrelation produces a symmetric signal,
      we only care about the "right half"""

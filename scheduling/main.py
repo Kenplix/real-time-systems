@@ -1,103 +1,152 @@
+import logging
+import threading
 import time
 from queue import PriorityQueue
-from dataclasses import dataclass, field
+from collections import namedtuple
 
 from timers import timer
-
-from signal.main import *
 from autocorrelation.main import autocorr
-from fourier_transform.main import w_table
-
 from fermat_factor.main import full_factor
+from fourier_transform.main import w_table
+from signal.main import *
 
-REQUESTS: int = 10000
+from termcolor import colored
 
-MIN_PRIORITY: int = 1
-MAX_PRIORITY: int = 10
+REQUESTS: int = 500
+request_number = 0
 
-INTENSITY: int = 5000
+MIN_PRIORITY: int = 10
+MAX_PRIORITY: int = 0
+
+INTENSITY: int = 10000
 
 REPS: int = 100
-CONFIG = dict()
 
-processed_requests = []
+processed_requests = 0
 
 
 @timer
-def collector(func, *args, **kwargs):
-    for _ in range(REPS):
+def collector(func, *args, reps, **kwargs):
+    for _ in range(reps):
         func(*args, **kwargs)
 
 
-def create_config():
+def calculate_average(*cfgs, reps):
+    return {i: collector(cfg.func, *cfg.params, reps=reps) / reps for i, cfg in enumerate(cfgs)}
+
+
+def build_funcs(*cfgs):
+    return {index: cfg for index, cfg in enumerate(cfgs)}
+
+
+class Request:
+    def __init__(self, task_id: int, login: float, average: float):
+        self.task_id = task_id
+        self.login = login
+        self.average = average
+        self.deadline = self.login + (1 + random.random()) * self.average
+
+    # Implementation of EDF algorithm
+    def __lt__(self, other):
+        return self.deadline < other.deadline
+
+    def __repr__(self):
+        return f'<Task ID : {self.task_id}, Life time : {self.deadline - self.login}>'
+
+
+class ProducerThread(threading.Thread):
+    def __init__(self, name, queue, average):
+        super().__init__()
+        self.name = name
+        self.queue = queue
+        self.average = average
+
+    def run(self):
+        request_number = 0
+        current_time = 0
+        while request_number < REQUESTS:
+            if not self.queue.full():
+                priority = random.randint(MAX_PRIORITY, MIN_PRIORITY)
+                item = Request(id := random.randint(0, 2), current_time, self.average[id])
+                self.queue.put((priority, item))
+                delay = 1 / INTENSITY
+                current_time += delay
+                request_number += 1
+                logging.debug(f'Putting ({priority=} {item=}): '
+                              f'{self.queue.qsize()} items in queue, {request_number=}')
+                time.sleep(delay)
+
+
+class ConsumerThread(threading.Thread):
+    def __init__(self, name, queue, funcs, lock):
+        super().__init__()
+        self.name = name
+        self.queue = queue
+        self.funcs = funcs
+        self.lock = lock
+
+    def run(self):
+        current_time = 0
+        global request_number, processed_requests
+        while request_number < REQUESTS:
+            if not self.queue.empty():
+                priority, item = self.queue.get()
+
+                start_time = time.time()
+
+                is_execute = False
+                if current_time < item.deadline:
+                    cfg = self.funcs[item.task_id]
+                    cfg.func(*cfg.params)
+                    is_execute = True
+                current_time += time.time() - start_time
+
+                prefix = colored('Failed', 'red', attrs=['bold'])
+                with self.lock:
+                    if current_time < item.deadline and is_execute:
+                        processed_requests += 1
+                        prefix = colored('Passed', 'green', attrs=['bold'])
+                    request_number += 1
+
+                logging.debug(f'{prefix} ({priority=} {item=}): '
+                              f'{self.queue.qsize()} items in queue, {request_number=}')
+                self.queue.task_done()
+
+
+def main(*, delay: float = 0, buf_size=None):
     x_gen = generator(HARMONICS, FREQUENCY)
     y_gen = generator(HARMONICS, FREQUENCY)
 
     sig_x = np.array([x_gen(lag) for lag in LAGS])
     sig_y = np.array([y_gen(lag) for lag in LAGS])
 
-    local_config = {
-        '0': {'func': autocorr, 'params': [sig_x, sig_y]},
-        '1': {'func': np.matmul, 'params': [w_table(len(LAGS)), sig_x]},
-        '2': {'func': full_factor, 'params': [12345]}
-    }
+    CFG = namedtuple('CFG', ['func', 'params'])
 
-    global CONFIG
-    for k, v in local_config.items():
-        CONFIG[k] = {'func': (func := v['func']),
-                     'params': v['params'],
-                     'mean': collector(func, *v['params']) / REPS}
+    c1 = CFG(autocorr, [sig_x, sig_y])
+    c2 = CFG(np.matmul, [w_table(len(LAGS)), sig_x])
+    c3 = CFG(full_factor, [12345])
+    configs = (c1, c2, c3)
 
+    queue = PriorityQueue(buf_size) if buf_size else PriorityQueue()
+    average = calculate_average(*configs, reps=REPS)
+    producer = ProducerThread(name='producer', queue=queue, average=average)
 
-class Request:
-    def __init__(self, task_id: str, login: float):
-        self.task_id = task_id
-        self.login = login
-        self.mean = CONFIG[task_id]['mean']
-        self.deadline = self.login + (1 + random.random()) * self.mean
+    funcs = build_funcs(*configs)
+    lock = threading.Lock()
+    consumer = ConsumerThread(name='consumer', queue=queue, funcs=funcs, lock=lock)
 
+    producer.start()
+    time.sleep(delay)
+    consumer.start()
 
-@dataclass(order=True)
-class PrioritizedRequest:
-    priority: int
-    item: Any = field(compare=False)
+    producer.join()
+    consumer.join()
 
-
-def fill_queue(intensity: Union[int, float]):
-    current_time = 0
-    for _ in range(REQUESTS):
-        priority = random.randint(MIN_PRIORITY, MAX_PRIORITY)
-        request = Request(str(random.randint(0, 2)), current_time)
-        current_time += 1 / intensity
-        queue.put(PrioritizedRequest(priority, request))
-
-
-def execute_queue(steps):
-    current_time = 0
-    for _ in range(steps):
-        if not queue.empty():
-            start_time = time.time()
-            request = queue.get()
-            func = CONFIG[request.item.task_id]['func']
-            params = CONFIG[request.item.task_id]['params']
-            func(*params)
-            current_time += time.time() - start_time
-            if current_time < request.item.deadline:
-                processed_requests.append(request)
-
+    print(f'{processed_requests=}')
 
 
 if __name__ == '__main__':
-    queue = PriorityQueue()
+    logging.basicConfig(level=logging.DEBUG,
+                        format='(%(threadName)s) %(message)s')
 
-    create_config()
-    fill_queue(INTENSITY)
-    import math
-    PROCESSES = 1
-
-    step = math.ceil(REQUESTS / PROCESSES)
-    for proc in range(PROCESSES):
-        execute_queue(step)
-
-    # execute_queue(REQUESTS)
-    print(len(processed_requests))
+    main(delay=0.01, buf_size=50)

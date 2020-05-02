@@ -2,7 +2,6 @@ from timers import timeit
 from signal.main import *
 
 
-@logged(separator='\n')
 def w_table(n: int) -> np.ndarray:
     res = np.empty((n, n), dtype=complex)
     for p in range(n):

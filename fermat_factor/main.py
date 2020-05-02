@@ -2,12 +2,9 @@ import math
 import tkinter as tk
 from typing import List, Tuple
 
-from logged import logged
-
 expansion: List[int] = []
 
 
-@logged()
 def factorise(n: int) -> Tuple[int, int]:
     s = math.ceil(math.sqrt(n))
     y = s**2 - n
@@ -17,7 +14,6 @@ def factorise(n: int) -> Tuple[int, int]:
     return s + int(math.sqrt(y)), s - int(math.sqrt(y))
 
 
-@logged(separator='\n')
 def full_factor(n: int) -> None:
     a, b = factorise(n)
     if b != 1:

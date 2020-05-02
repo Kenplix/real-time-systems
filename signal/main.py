@@ -3,8 +3,6 @@ from typing import *
 
 import numpy as np
 
-from logged import logged
-
 
 Rational = Union[int, float]
 
@@ -18,7 +16,6 @@ LAGS: range = range(256)
 Ticker = Callable[[Rational], Rational]
 
 
-@logged(separator='\n')
 def generator(harmonics: int, frequency: int) -> Ticker:
     A = np.array([random.uniform(-AMPLITUDE, AMPLITUDE) for _ in range(harmonics)])
     phi = np.array([FULL_CIRCLE * random.uniform(-1, 1) for _ in range(harmonics)])
