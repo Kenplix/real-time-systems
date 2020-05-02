@@ -4,7 +4,6 @@ import time
 from queue import PriorityQueue
 from dataclasses import dataclass, field
 from collections import namedtuple
-from concurrent.futures import ThreadPoolExecutor
 
 from timers import timer
 from autocorrelation.main import autocorr
@@ -82,33 +81,6 @@ class ProducerThread(threading.Thread):
                 logging.debug(f'{prefix} ({priority=}, {item}): '
                               f'{self.queue.qsize()} items in queue, {request_number=}')
                 time.sleep(delay)
-
-
-def consumer(queue, funcs, lock):
-    current_time = 0
-    global request_number, processed_requests
-    while request_number < REQUESTS:
-        if not queue.empty():
-            priority, item = queue.get()
-
-            is_executed = False
-            start_time = time.time()
-            if current_time < item.deadline:
-                cfg = funcs[item.task_id]
-                cfg.func(*cfg.params)
-                is_executed = True
-            current_time += time.time() - start_time
-
-            prefix = colored('Failed', 'red', attrs=['bold'])
-            with lock:
-                if current_time < item.deadline and is_executed:
-                    processed_requests += 1
-                    prefix = colored('Passed', 'green', attrs=['bold'])
-                request_number += 1
-
-            logging.debug(f'{prefix} ({priority=}, {item}): '
-                          f'{self.queue.qsize()} items in queue, {request_number=}')
-            queue.task_done()
 
 
 class ConsumerThread(threading.Thread):
