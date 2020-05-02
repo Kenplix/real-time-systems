@@ -23,7 +23,6 @@ CONFIG = dict()
 processed_requests = []
 
 
-
 @timer
 def collector(func, *args, **kwargs):
     for _ in range(REPS):
@@ -51,10 +50,10 @@ def create_config():
 
 
 class Request:
-    def __init__(self, task_id: Union[int, str], login: float):
-        self.task_id = str(task_id)
+    def __init__(self, task_id: str, login: float):
+        self.task_id = task_id
         self.login = login
-        self.mean = CONFIG[str(task_id)]['mean']
+        self.mean = CONFIG[task_id]['mean']
         self.deadline = self.login + (1 + random.random()) * self.mean
 
 
@@ -68,28 +67,37 @@ def fill_queue(intensity: Union[int, float]):
     current_time = 0
     for _ in range(REQUESTS):
         priority = random.randint(MIN_PRIORITY, MAX_PRIORITY)
-        request = Request(random.randint(0, 2), current_time)
+        request = Request(str(random.randint(0, 2)), current_time)
         current_time += 1 / intensity
         queue.put(PrioritizedRequest(priority, request))
 
 
-def execute_queue():
+def execute_queue(steps):
     current_time = 0
-    while not queue.empty():
-        start_time = time.time()
-        request = queue.get()
-        func = CONFIG[request.item.task_id]['func']
-        params = CONFIG[request.item.task_id]['params']
-        func(*params)
-        current_time += time.time() - start_time
-        if current_time < request.item.deadline:
-            processed_requests.append(request)
+    for _ in range(steps):
+        if not queue.empty():
+            start_time = time.time()
+            request = queue.get()
+            func = CONFIG[request.item.task_id]['func']
+            params = CONFIG[request.item.task_id]['params']
+            func(*params)
+            current_time += time.time() - start_time
+            if current_time < request.item.deadline:
+                processed_requests.append(request)
+
+
 
 if __name__ == '__main__':
     queue = PriorityQueue()
 
     create_config()
     fill_queue(INTENSITY)
-    execute_queue()
+    import math
+    PROCESSES = 1
 
+    step = math.ceil(REQUESTS / PROCESSES)
+    for proc in range(PROCESSES):
+        execute_queue(step)
+
+    # execute_queue(REQUESTS)
     print(len(processed_requests))
