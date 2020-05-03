@@ -1,25 +1,25 @@
-import logging
+# import logging
 import threading
 import time
 from queue import PriorityQueue
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from collections import namedtuple
 
 from timers import timer
 from autocorrelation.main import autocorr
 from fermat_factor.main import full_factor
 from fourier_transform.main import w_table
-from signal.main import *
+from signal_.main import *
 
-from termcolor import colored
+# from termcolor import colored
 
-REQUESTS: int = 500
+REQUESTS: int = 5000
 request_number = 0
 
-MIN_PRIORITY: int = 10
+MIN_PRIORITY: int = 3
 MAX_PRIORITY: int = 0
 
-INTENSITY: int = 10000
+INTENSITY: int = 6000
 
 REPS: int = 100
 
@@ -77,9 +77,9 @@ class ProducerThread(threading.Thread):
                 current_time += delay
                 request_number += 1
 
-                prefix = colored('Putting', 'cyan', attrs=['bold'])
-                logging.debug(f'{prefix} ({priority=}, {item}): '
-                              f'{self.queue.qsize()} items in queue, {request_number=}')
+                # prefix = colored('Putting', 'cyan', attrs=['bold'])
+                # logging.debug(f'{prefix} ({priority=}, {item}): '
+                #               f'{self.queue.qsize()} items in queue, {request_number=}')
                 time.sleep(delay)
 
 
@@ -106,15 +106,15 @@ class ConsumerThread(threading.Thread):
                     is_executed = True
                 current_time += time.time() - start_time
 
-                prefix = colored('Failed', 'red', attrs=['bold'])
+                # prefix = colored('Failed', 'red', attrs=['bold'])
                 with self.lock:
                     if current_time < item.deadline and is_executed:
                         processed_requests += 1
-                        prefix = colored('Passed', 'green', attrs=['bold'])
+                        # prefix = colored('Passed', 'green', attrs=['bold'])
                     request_number += 1
 
-                logging.debug(f'{prefix} ({priority=}, {item}): '
-                              f'{self.queue.qsize()} items in queue, {request_number=}')
+                # logging.debug(f'{prefix} ({priority=}, {item}): '
+                #               f'{self.queue.qsize()} items in queue, {request_number=}')
                 self.queue.task_done()
 
 
@@ -151,7 +151,8 @@ def main(*, delay: float = 0, buf_size=None, max_workers=1):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG,
-                        format='(%(threadName)s) %(message)s')
+    # logging.basicConfig(level=logging.DEBUG,
+    #                     format='(%(threadName)s) %(message)s')
 
     main(delay=0.01, buf_size=50, max_workers=5)
+
