@@ -4,16 +4,14 @@ from typing import *
 import numpy as np
 
 
-Rational = Union[int, float]
-
-AMPLITUDE: Rational = 1
+AMPLITUDE: float = 1
 FULL_CIRCLE = 2 * np.pi
 
 HARMONICS: int = 10
 FREQUENCY: int = 1100
 LAGS: range = range(256)
 
-Ticker = Callable[[Rational], Rational]
+Ticker = Callable[[float], float]
 
 
 def generator(harmonics: int, frequency: int) -> Ticker:
