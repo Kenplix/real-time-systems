@@ -16,28 +16,30 @@ from termcolor import colored
 import matplotlib.pyplot as plt
 
 REPS: int = 100
+
 REQUESTS: int = 500
-MIN_PRIORITY: int = 3
+MIN_PRIORITY: int = 5
 MAX_PRIORITY: int = 0
-INTENSITY: float = 5
+INTENSITY: float = 25
 DELAY: float = 1 / INTENSITY
 
 CFG = namedtuple('CFG', ['func', 'params'])
 
 # Counters
-qsize: int = 0
+start_time: float = 0
 current_time: float = 0
-waiting_time: float = 0
-downtime_percent: float = 0
-processed_requests: int = 0
+
+qsize: int
+waiting_time: float
+downtime: float
+processed_requests: int
 
 # Data
-intensities = []
-qsize_data = []
-waiting_time_data = []
-downtime_percent_data = []
-overdue_requests_data = []
-start_time = time.time()
+intensities: List[float] = []
+qsize_ds: List[int] = []
+waiting_time_ds: List[float] = []
+downtime_ds: List[float] = []
+overdue_requests_ds: List[int] = []
 
 
 @timer
@@ -78,28 +80,27 @@ def producer(queue, average: Dict[int, float], lock) -> None:
     for _ in range(REQUESTS):
         priority = random.randint(MAX_PRIORITY, MIN_PRIORITY)
         item = Request(id := random.randint(0, 2), producer_time, average[id])
-        queue.put((priority, item))
+        with lock:
+            queue.put((priority, item))
+            qsize += queue.qsize()
         prefix = colored('Putting', 'cyan', attrs=['bold'])
         logging.debug(f'{prefix} current_time={time.time() - start_time} {item}')
 
         time.sleep(DELAY)
         producer_time = time.time() - start_time
 
-        with lock:
-            qsize += queue.qsize()
-
 
 def consumer(queue, funcs: Dict[int, CFG], lock) -> None:
-    global current_time, waiting_time, downtime_percent
+    global current_time, waiting_time, downtime
     global processed_requests
     request_number = 0
     downtime_start = time.time()
     while request_number < REQUESTS:
         if not queue.empty():
-            priority, item = queue.get()
             with lock:
-                downtime_percent += (time.time() - downtime_start) / DELAY
-                waiting_time += time.time() - start_time - item.login
+                priority, item = queue.get()
+                downtime += (time.time() - downtime_start) / DELAY
+                waiting_time += (time.time() - start_time - item.login) / DELAY
 
             is_executed = False
             if time.time() - start_time < item.deadline:
@@ -144,27 +145,54 @@ def main(*, delay: float = 0, buf_size: Optional[int] = None, max_workers: int =
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG, format='%(message)s')
+    start_time = time.time()
 
-    for i in range(99):
-        main(delay=2, max_workers=3)
-        qsize_data.append(qsize / REQUESTS)
-        waiting_time_data.append(waiting_time / REQUESTS)
-        downtime_percent_data.append(downtime_percent / REQUESTS)
-        overdue_requests_data.append(REQUESTS - processed_requests)
-        intensities.append(INTENSITY)
+    while INTENSITY <= REQUESTS * 2 + 1:
+        qsize: int = 0
+        waiting_time: float = 0
+        downtime: float = 0
+        processed_requests: int = 0
+        start_time = time.time()
 
-        print(f'Requests {REQUESTS}')
-        print(f'Average qsize {qsize / REQUESTS}\n'
-              f'Average waiting {waiting_time / REQUESTS}\n'
-              f'Average downtime {downtime_percent / REQUESTS}')
+        main(max_workers=3)
+
+        print(f'{INTENSITY=}')
+        avg_qsize = qsize / REQUESTS
+        avg_waiting_percent = 100 * waiting_time / REQUESTS
+        avg_downtime_percent = 100 * downtime / REQUESTS
+        print(f'{avg_qsize=}\n{avg_waiting_percent=}\n{avg_downtime_percent=}')
         overdue_requests = REQUESTS - processed_requests
-        print(f'Number of overdue requests {overdue_requests}\n'
-              f'Overdue requests / requests {overdue_requests / REQUESTS}')
+        print(f'{overdue_requests=} percent: {100 * overdue_requests / REQUESTS}\n')
 
-        INTENSITY += 5
+        qsize_ds.append(avg_qsize)
+        waiting_time_ds.append(avg_waiting_percent)
+        downtime_ds.append(avg_downtime_percent)
+        overdue_requests_ds.append(overdue_requests)
+        intensities.append(INTENSITY)
+        INTENSITY += 25
 
-    dataset = (qsize_data, waiting_time_data, downtime_percent_data, overdue_requests_data)
+    fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1)
+    #  Make a little extra space between the subplots
+    fig.subplots_adjust(hspace=10)
 
-    for data in dataset:
-        plt.plot(intensities, data)
-        plt.show()
+    # The ratio of Queue size to Intensity
+    ax1.plot(intensities, qsize_ds)
+    ax1.set_xlabel('Intensity')
+    ax1.set_ylabel('Queue size')
+
+    # The ratio of Waiting time percent to Intensity relative to DELAY
+    ax2.plot(intensities, waiting_time_ds)
+    ax2.set_xlabel('Intensity')
+    ax2.set_ylabel('Waiting percent')
+
+    # The ratio of Downtime percent to Intensity relative to DELAY
+    ax3.plot(intensities, downtime_ds)
+    ax3.set_xlabel('Intensity')
+    ax3.set_ylabel('Downtime percent')
+
+    # The ratio of Overdue requests to Intensity
+    ax4.plot(intensities, overdue_requests_ds)
+    ax4.set_xlabel('Intensity')
+    ax4.set_ylabel('Overdue requests')
+
+    plt.show()
