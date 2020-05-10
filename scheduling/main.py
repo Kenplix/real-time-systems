@@ -17,10 +17,10 @@ import matplotlib.pyplot as plt
 
 REPS: int = 100
 
-REQUESTS: int = 500
+REQUESTS: int = 1500
 MIN_PRIORITY: int = 5
 MAX_PRIORITY: int = 0
-INTENSITY: float = 25
+INTENSITY: float = 9000
 DELAY: float = 1 / INTENSITY
 
 CFG = namedtuple('CFG', ['func', 'params'])
@@ -147,7 +147,9 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG, format='%(message)s')
     start_time = time.time()
 
-    while INTENSITY <= REQUESTS * 2 + 1:
+    while INTENSITY >= 0:
+        INTENSITY -= 100
+
         qsize: int = 0
         waiting_time: float = 0
         downtime: float = 0
@@ -169,7 +171,6 @@ if __name__ == '__main__':
         downtime_ds.append(avg_downtime_percent)
         overdue_requests_ds.append(overdue_requests)
         intensities.append(INTENSITY)
-        INTENSITY += 25
 
     fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1)
     #  Make a little extra space between the subplots
