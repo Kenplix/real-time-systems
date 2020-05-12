@@ -1,3 +1,4 @@
+import sys
 import time
 import logging
 from threading import Lock
@@ -15,12 +16,12 @@ from signal.main import *
 from termcolor import colored
 import matplotlib.pyplot as plt
 
-REPS: int = 100
+REPS: int = 1000
 
-REQUESTS: int = 1500
+REQUESTS: int = 500
 MIN_PRIORITY: int = 5
 MAX_PRIORITY: int = 0
-INTENSITY: float = 9000
+INTENSITY: float = 50
 DELAY: float = 1 / INTENSITY
 
 CFG = namedtuple('CFG', ['func', 'params'])
@@ -64,7 +65,7 @@ class Request:
     deadline: float = None
 
     def __post_init__(self):
-        self.deadline = self.login + self.average + DELAY
+        self.deadline = self.login + self.average + random.random() * DELAY
 
     # Implementation of EDF algorithm
     def __lt__(self, other):
@@ -131,12 +132,11 @@ def main(*, delay: float = 0, buf_size: Optional[int] = None, max_workers: int =
     c2 = CFG(np.matmul, [w_table(len(LAGS)), sig_x])
     c3 = CFG(full_factor, [12345])
     configs = (c1, c2, c3)
-
-    queue = PriorityQueue(buf_size) if buf_size else PriorityQueue()
     average = calculate_average(*configs, reps=REPS)
-    lock = Lock()
     funcs = build_funcs(*configs)
 
+    queue = PriorityQueue(buf_size) if buf_size else PriorityQueue()
+    lock = Lock()
     with ThreadPoolExecutor(max_workers) as executor:
         executor.submit(producer, queue, average, lock)
         time.sleep(delay)
@@ -144,26 +144,26 @@ def main(*, delay: float = 0, buf_size: Optional[int] = None, max_workers: int =
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG, format='%(message)s')
-    start_time = time.time()
+    logging.basicConfig(level=logging.INFO, format='%(message)s')
 
-    while INTENSITY >= 0:
-        INTENSITY -= 100
+    count_of_steps: int = 10
+    step_value: float = 500
 
+    while count_of_steps:
         qsize: int = 0
         waiting_time: float = 0
         downtime: float = 0
         processed_requests: int = 0
         start_time = time.time()
+        main(max_workers=5)
+        print(f'Elapsed time : {time.time() - start_time}')
 
-        main(max_workers=3)
-
-        print(f'{INTENSITY=}')
         avg_qsize = qsize / REQUESTS
         avg_waiting_percent = 100 * waiting_time / REQUESTS
         avg_downtime_percent = 100 * downtime / REQUESTS
-        print(f'{avg_qsize=}\n{avg_waiting_percent=}\n{avg_downtime_percent=}')
         overdue_requests = REQUESTS - processed_requests
+        print(f'{INTENSITY=}')
+        print(f'{avg_qsize=}\n{avg_waiting_percent=}\n{avg_downtime_percent=}')
         print(f'{overdue_requests=} percent: {100 * overdue_requests / REQUESTS}\n')
 
         qsize_ds.append(avg_qsize)
@@ -171,6 +171,8 @@ if __name__ == '__main__':
         downtime_ds.append(avg_downtime_percent)
         overdue_requests_ds.append(overdue_requests)
         intensities.append(INTENSITY)
+        INTENSITY += step_value
+        count_of_steps -= 1
 
     fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1)
     #  Make a little extra space between the subplots
