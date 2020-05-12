@@ -18,10 +18,11 @@ def show(sig: np.ndarray, ft: np.ndarray, ft_type: str) -> None:
     axs[0].plot(LAGS, sig)
 
     axs[1].set_title(f'{ft_type} real')
-    axs[1].stem(LAGS, np.real(ft), use_line_collection=True)
+    axs[1].plot(LAGS, np.real(ft))
 
     axs[2].set_title(f'{ft_type} imag')
-    axs[2].stem(LAGS, np.imag(ft), use_line_collection=True)
+    axs[2].plot(LAGS, np.imag(ft))
+
     fig.tight_layout()
     plt.show()
 
@@ -30,12 +31,10 @@ if __name__ == '__main__':
     gen = generator(HARMONICS, FREQUENCY)
     sig = np.array([gen(lag) for lag in LAGS])
 
-    msg = 'DFT'
-    with timeit(msg):
-        dft = np.matmul(w_table(len(LAGS)), sig)
-    show(sig, dft, msg)
+    with timeit('MY'):
+        my = np.matmul(w_table(len(LAGS)), sig)
 
-    msg = 'FFT'
-    with timeit(msg):
-        fft = np.fft.fft(sig, n=len(LAGS))
-    show(sig, fft, msg)
+    with timeit('NP'):
+        np_ = np.fft.fft(sig, n=len(LAGS))
+
+    show(sig, np.absolute(my - np_), 'Absolute difference')
