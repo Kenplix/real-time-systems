@@ -1,4 +1,3 @@
-import sys
 import time
 import logging
 from threading import Lock
@@ -21,8 +20,6 @@ REPS: int = 1000
 REQUESTS: int = 500
 MIN_PRIORITY: int = 5
 MAX_PRIORITY: int = 0
-INTENSITY: float = 50
-DELAY: float = 1 / INTENSITY
 
 CFG = namedtuple('CFG', ['func', 'params'])
 
@@ -34,6 +31,9 @@ qsize: int
 waiting_time: float
 downtime: float
 processed_requests: int
+
+INTENSITY: float = 500
+DELAY: float = 1 / INTENSITY
 
 # Data
 intensities: List[float] = []
@@ -144,10 +144,9 @@ def main(*, delay: float = 0, buf_size: Optional[int] = None, max_workers: int =
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO, format='%(message)s')
-
-    count_of_steps: int = 10
-    step_value: float = 500
+    logging.basicConfig(level=logging.DEBUG, format='%(message)s')
+    count_of_steps: int = 1
+    step_value: float = 1000
 
     while count_of_steps:
         qsize: int = 0
@@ -175,7 +174,7 @@ if __name__ == '__main__':
         count_of_steps -= 1
 
     fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1)
-    #  Make a little extra space between the subplots
+    # Make a little extra space between the subplots
     fig.subplots_adjust(hspace=10)
 
     # The ratio of Queue size to Intensity
