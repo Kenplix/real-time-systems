@@ -6,14 +6,14 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from collections import namedtuple
 
-from timers import timer
-from autocorrelation.main import autocorr
-from fermat_factor.main import full_factor
-from fourier_transform.main import w_table
-from signal.main import *
-
 from termcolor import colored
 import matplotlib.pyplot as plt
+
+from timers import timer
+from signal.__main__ import *
+from autocorrelation.__main__ import autocorr
+from fermat_factor.__main__ import full_factor
+from fourier_transform.__main__ import w_table
 
 REPS: int = 1000
 

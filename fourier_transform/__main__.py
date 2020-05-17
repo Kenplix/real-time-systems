@@ -1,5 +1,5 @@
 from timers import timeit
-from signal.main import *
+from signal.__main__ import *
 
 
 def w_table(n: int) -> np.ndarray:

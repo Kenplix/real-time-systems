@@ -1,4 +1,4 @@
-from signal.main import *
+from signal.__main__ import *
 
 
 def autocorr(x: np.ndarray, y: np.ndarray, mode: str = 'regular') -> np.ndarray:
